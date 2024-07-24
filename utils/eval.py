@@ -32,7 +32,7 @@ def compute_ssim(content_images, stylised_images):
     
     return ssim_sum
 
-def plot_results(content_images, style_images, style_labels, stylised_images, nrows=5, model_name="", set_edge_descriptor=False):
+def plot_results(content_images, style_images, style_labels, stylised_images, nrows=5, model_name="", set_edge_descriptor=True):
     """Plot the stylisation results with Sobel or Canny edge detection
     
     Args:
@@ -65,17 +65,19 @@ def plot_results(content_images, style_images, style_labels, stylised_images, nr
         if set_edge_descriptor:
             axes[i][3].imshow(sobel(content_img), cmap="copper")
             axes[i][4].imshow(sobel(stylised_img), cmap="copper")
+            edge_descriptor_title = 'Sobel'
         else:
             axes[i][3].imshow(canny(content_img, sigma=1), cmap="copper")
             axes[i][4].imshow(canny(stylised_img, sigma=1), cmap="copper")
-        
+            edge_descriptor_title = 'Canny'
         # Set subplot titles
         if i == nrows - 1:
             axes[i][0].text(0.5, -0.07, "Content", size=16, ha="center", transform=axes[i][0].transAxes)
             axes[i][1].text(0.5, -0.07, "Style", size=16, ha="center", transform=axes[i][1].transAxes)
             axes[i][2].text(0.5, -0.07, f"{model_name}", size=16, ha="center", transform=axes[i][2].transAxes)
-            axes[i][3].text(0.5, -0.07, f"Content Canny Edges", size=16, ha="center", transform=axes[i][3].transAxes)
-            axes[i][4].text(0.5, -0.07, f"{model_name} Canny Edges", size=16, ha="center", transform=axes[i][4].transAxes)
+            
+            axes[i][3].text(0.5, -0.07, f"Content {edge_descriptor_title} Edges", size=16, ha="center", transform=axes[i][3].transAxes)
+            axes[i][4].text(0.5, -0.07, f"{model_name} {edge_descriptor_title} Edges", size=16, ha="center", transform=axes[i][4].transAxes)
 
     fig.suptitle(f'{model_name} Results', size=21, y=0.99)
     plt.tight_layout()
