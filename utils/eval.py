@@ -1,4 +1,3 @@
-from skimage import feature
 import matplotlib.pyplot as plt
 
 WIKIART_STYLE_MAP = {
@@ -10,7 +9,9 @@ WIKIART_STYLE_MAP = {
 }
 
 
+from skimage.feature import canny
 from skimage.metrics import structural_similarity
+from skimage.filters import sobel
 
 def compute_ssim(content_images, stylised_images):
     """Returns the average structural similarity (SSIM) between the content and stylised images"""
@@ -31,8 +32,8 @@ def compute_ssim(content_images, stylised_images):
     
     return ssim_sum
 
-def plot_results(content_images, style_images, style_labels, stylised_images, nrows=5, model_name=""):
-    """Plot the stylisation results
+def plot_results(content_images, style_images, style_labels, stylised_images, nrows=5, model_name="", set_edge_descriptor=True):
+    """Plot the stylisation results with Sobel or Canny edge detection
     
     Args:
         content_images (tensor -> shape(B, C, H, W)): Defines the content images
@@ -41,6 +42,7 @@ def plot_results(content_images, style_images, style_labels, stylised_images, nr
         stylised_images (tensor -> shape(B, C, H, W)): Defines the output stylised images
         nrows (int): Defines the number of samples to plot
         model_name (string): Defines the model name to print on the plot
+        set_edge_descriptor (boolean): Defines the edge detection method to use. True = Sobel, False = Canny edge
     """
     fig, axes = plt.subplots(nrows=nrows, ncols=5, figsize=(20, 20), subplot_kw={'xticks': [], 'yticks': []})
     for i in range(nrows):
@@ -60,16 +62,22 @@ def plot_results(content_images, style_images, style_labels, stylised_images, nr
         # Plot canny edges of content and stylised image
         content_img = content_img.permute(1, 2, 0).numpy()[:, :, 0]
         stylised_img = stylised_img.permute(1, 2, 0).numpy()[:, :, 0]
-        axes[i][3].imshow(feature.canny(content_img, sigma=1), cmap="copper")
-        axes[i][4].imshow(feature.canny(stylised_img, sigma=1), cmap="copper")
-        
+        if set_edge_descriptor:
+            axes[i][3].imshow(sobel(content_img), cmap="copper")
+            axes[i][4].imshow(sobel(stylised_img), cmap="copper")
+            edge_descriptor_title = 'Sobel'
+        else:
+            axes[i][3].imshow(canny(content_img, sigma=1), cmap="copper")
+            axes[i][4].imshow(canny(stylised_img, sigma=1), cmap="copper")
+            edge_descriptor_title = 'Canny'
         # Set subplot titles
         if i == nrows - 1:
             axes[i][0].text(0.5, -0.07, "Content", size=16, ha="center", transform=axes[i][0].transAxes)
             axes[i][1].text(0.5, -0.07, "Style", size=16, ha="center", transform=axes[i][1].transAxes)
             axes[i][2].text(0.5, -0.07, f"{model_name}", size=16, ha="center", transform=axes[i][2].transAxes)
-            axes[i][3].text(0.5, -0.07, f"Content Canny Edges", size=16, ha="center", transform=axes[i][3].transAxes)
-            axes[i][4].text(0.5, -0.07, f"{model_name} Canny Edges", size=16, ha="center", transform=axes[i][4].transAxes)
+            
+            axes[i][3].text(0.5, -0.07, f"Content {edge_descriptor_title} Edges", size=16, ha="center", transform=axes[i][3].transAxes)
+            axes[i][4].text(0.5, -0.07, f"{model_name} {edge_descriptor_title} Edges", size=16, ha="center", transform=axes[i][4].transAxes)
 
     fig.suptitle(f'{model_name} Results', size=21, y=0.99)
     plt.tight_layout()
