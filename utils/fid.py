@@ -34,7 +34,6 @@ limitations under the License.
 """
 
 import os
-import pathlib
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 
 import numpy as np
@@ -52,67 +51,10 @@ except ImportError:
         return x
 
 
-from pytorch_fid.inception import InceptionV3
-
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-parser.add_argument("--batch-size", type=int, default=50, help="Batch size to use")
-parser.add_argument(
-    "--num-workers",
-    type=int,
-    help=(
-        "Number of processes to use for data loading. " "Defaults to `min(8, num_cpus)`"
-    ),
-)
-parser.add_argument(
-    "--device", type=str, default=None, help="Device to use. Like cuda, cuda:0 or cpu"
-)
-parser.add_argument(
-    "--dims",
-    type=int,
-    default=2048,
-    choices=list(InceptionV3.BLOCK_INDEX_BY_DIM),
-    help=(
-        "Dimensionality of Inception features to use. "
-        "By default, uses pool3 features"
-    ),
-)
-parser.add_argument(
-    "--save-stats",
-    action="store_true",
-    help=(
-        "Generate an npz archive from a directory of "
-        "samples. The first path is used as input and the "
-        "second as output."
-    ),
-)
-parser.add_argument(
-    "path",
-    type=str,
-    nargs=2,
-    help=("Paths to the generated images or " "to .npz statistic files"),
-)
-
-IMAGE_EXTENSIONS = {"bmp", "jpg", "jpeg", "pgm", "png", "ppm", "tif", "tiff", "webp"}
-
-
-class ImagePathDataset(torch.utils.data.Dataset):
-    def __init__(self, files, transforms=None):
-        self.files = files
-        self.transforms = transforms
-
-    def __len__(self):
-        return len(self.files)
-
-    def __getitem__(self, i):
-        path = self.files[i]
-        img = Image.open(path).convert("RGB")
-        if self.transforms is not None:
-            img = self.transforms(img)
-        return img
-
+from models.inception import InceptionV3
 
 def get_activations(
-    files, model, batch_size=50, dims=2048, device="cpu", num_workers=1
+    data, model, dims=2048, device="cpu", num_workers=1
 ):
     """Calculates the activations of the pool_3 layer for all images.
 
@@ -135,29 +77,11 @@ def get_activations(
     """
     model.eval()
 
-    if batch_size > len(files):
-        print(
-            (
-                "Warning: batch size is bigger than the data size. "
-                "Setting batch size to data size"
-            )
-        )
-        batch_size = len(files)
-
-    dataset = files
-    dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        drop_last=False,
-        num_workers=num_workers,
-    )
-
-    pred_arr = np.empty((len(files), dims))
+    pred_arr = np.empty((len(data), dims))
 
     start_idx = 0
 
-    for batch in tqdm(dataloader):
+    for batch in tqdm(data):
         batch = batch.to(device)
 
         with torch.no_grad():
@@ -238,7 +162,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
 
 def calculate_activation_statistics(
-    files, model, batch_size=50, dims=2048, device="cpu", num_workers=1
+    data, model, dims=2048, device="cpu", num_workers=1
 ):
     """Calculation of the statistics used by the FID.
     Params:
@@ -257,117 +181,28 @@ def calculate_activation_statistics(
     -- sigma : The covariance matrix of the activations of the pool_3 layer of
                the inception model.
     """
-    act = get_activations(files, model, batch_size, dims, device, num_workers)
+    act = get_activations(data, model, dims, device, num_workers)
     mu = np.mean(act, axis=0)
     sigma = np.cov(act, rowvar=False)
     return mu, sigma
 
 
-def compute_statistics_of_path(path, model, batch_size, dims, device, num_workers=1):
-    if path.endswith(".npz"):
-        with np.load(path) as f:
-            m, s = f["mu"][:], f["sigma"][:]
-    else:
-        path = pathlib.Path(path)
-        files = sorted(
-            [file for ext in IMAGE_EXTENSIONS for file in path.glob("*.{}".format(ext))]
-        )
-        m, s = calculate_activation_statistics(
-            files, model, batch_size, dims, device, num_workers
-        )
-
-    return m, s
 
 
-def calculate_fid_given_paths(paths, batch_size, device, dims, num_workers=1):
-    """Calculates the FID of two paths"""
-    for p in paths:
-        if not os.path.exists(p):
-            raise RuntimeError("Invalid path: %s" % p)
 
-    block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
-
-    model = InceptionV3([block_idx]).to(device)
-
-    m1, s1 = compute_statistics_of_path(
-        paths[0], model, batch_size, dims, device, num_workers
-    )
-    m2, s2 = compute_statistics_of_path(
-        paths[1], model, batch_size, dims, device, num_workers
-    )
-    fid_value = calculate_frechet_distance(m1, s1, m2, s2)
-
-    return fid_value
-
-
-def calculate_fid_from_dataset(inputs, outpus, batch_size, device, dims, num_workers=1):
+def calculate_fid_from_dataset(inputs, outputs, device, dims, num_workers=1):
     """calculates fid from images in our dataset"""
     block_idx = InceptionV3.BLOCK_IDX_BY_DIM[dims]
 
     model = InceptionV3([block_idx]).to(device)
 
     m1, s1 = calculate_activation_statistics(
-        inputs, model, batch_size, dims, device, num_workers
+        inputs, model, dims, device, num_workers
     )
     m2, s2 = calculate_activation_statistics(
-        outpus, model, batch_size, dims, device, num_workers
+        outputs, model, dims, device, num_workers
     )
     fid_value = calculate_frechet_distance(m1, s1, m2, s2)
 
     return fid_value
                                         
-
-def save_fid_stats(paths, batch_size, device, dims, num_workers=1):
-    """Saves FID statistics of one path"""
-    if not os.path.exists(paths[0]):
-        raise RuntimeError("Invalid path: %s" % paths[0])
-
-    if os.path.exists(paths[1]):
-        raise RuntimeError("Existing output file: %s" % paths[1])
-
-    block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
-
-    model = InceptionV3([block_idx]).to(device)
-
-    print(f"Saving statistics for {paths[0]}")
-
-    m1, s1 = compute_statistics_of_path(
-        paths[0], model, batch_size, dims, device, num_workers
-    )
-
-    np.savez_compressed(paths[1], mu=m1, sigma=s1)
-
-
-def main():
-    args = parser.parse_args()
-
-    if args.device is None:
-        device = torch.device("cuda" if (torch.cuda.is_available()) else "cpu")
-    else:
-        device = torch.device(args.device)
-
-    if args.num_workers is None:
-        try:
-            num_cpus = len(os.sched_getaffinity(0))
-        except AttributeError:
-            # os.sched_getaffinity is not available under Windows, use
-            # os.cpu_count instead (which may not return the *available* number
-            # of CPUs).
-            num_cpus = os.cpu_count()
-
-        num_workers = min(num_cpus, 8) if num_cpus is not None else 0
-    else:
-        num_workers = args.num_workers
-
-    if args.save_stats:
-        save_fid_stats(args.path, args.batch_size, device, args.dims, num_workers)
-        return
-
-    fid_value = calculate_fid_given_paths(
-        args.path, args.batch_size, device, args.dims, num_workers
-    )
-    print("FID: ", fid_value)
-
-
-if __name__ == "__main__":
-    main()
