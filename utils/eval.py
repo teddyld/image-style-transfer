@@ -274,3 +274,25 @@ def calc_style_loss(input, target):
     input_mean, input_std = calc_mean_std(input)
     target_mean, target_std = calc_mean_std(target)
     return torch.nn.MSELoss()(input_mean, target_mean) + torch.nn.MSELoss()(input_std, target_std)
+
+def plot_training_history(content_losses, style_losses, total_losses):
+    '''
+    Plot training history with two plots
+        1) Content loss vs. Style loss
+        2) Total loss
+    '''
+    plt.figure()
+    plt.plot(content_losses)
+    plt.plot(style_losses)
+    plt.title('Content loss vs Style loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Content', 'Style'], loc='upper left')
+
+    plt.figure()
+    plt.plot(total_losses)
+    plt.title('Total loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+
+    plt.show()
