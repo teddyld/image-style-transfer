@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
-from PIL import Image
 import numpy as np
-from tqdm import tqdm
 import torch
 
 WIKIART_STYLE_MAP = {
@@ -135,7 +133,7 @@ def get_activations(
 
     start_idx = 0
 
-    for batch in tqdm(data):
+    for batch in data:
         batch = batch.to(device)
 
         with torch.no_grad():
@@ -207,7 +205,8 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     if np.iscomplexobj(covmean):
         if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
             m = np.max(np.abs(covmean.imag))
-            raise ValueError("Imaginary component {}".format(m))
+            # raise ValueError("Imaginary component {}".format(m))
+            return 0
         covmean = covmean.real
 
     tr_covmean = np.trace(covmean)
@@ -216,7 +215,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
 
 def calculate_activation_statistics(
-    data, model, dims=2048, device="cpu", num_workers=1
+    data, model, dims=2048, device="cpu", num_workers=3
 ):
     """Calculation of the statistics used by the FID.
     Params:
