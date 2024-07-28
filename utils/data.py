@@ -1,6 +1,9 @@
 from torch.utils.data import Dataset, DataLoader
 import os
 from PIL import Image
+from torch.autograd import Variable
+import numpy as np
+import torch
 
 COCO2014_DATA_PATH = './data/coco2014/'
 WIKIART_DATA_PATH = './data/wikiart/'
@@ -64,6 +67,48 @@ class StyleDataset(Dataset):
             img = self.transform(img)
             
         return img, label
+    
+class StyleLoader():
+    def __init__(self, style_size=64, style_folder='./data/style/train', cuda=True):
+        self.folder = style_folder
+        self.style_size = style_size
+        self.files = os.listdir(style_folder)
+        self.cuda = cuda
+    
+    def get(self, i):
+        idx = i % len(self.files)
+        filepath = os.path.join(self.folder, self.files[idx])
+        style = self.tensor_load_rgbimage(filepath, self.style_size)    
+        style = style.unsqueeze(0)
+        style = self.preprocess_batch(style)
+        if self.cuda:
+            style = style.cuda()
+        style_v = Variable(style, requires_grad=False)
+        return style_v
+
+    @staticmethod
+    def preprocess_batch(batch):
+        batch = batch.transpose(0, 1)
+        (r, g, b) = torch.chunk(batch, 3)
+        batch = torch.cat((b, g, r))
+        batch = batch.transpose(0, 1)
+        return batch
+
+    @staticmethod
+    def tensor_load_rgbimage(filename, size=None, scale=None, keep_asp=False):
+        img = Image.open(filename).convert('RGB')
+        if size is not None:
+            if keep_asp:
+                size2 = int(size * 1.0 / img.size[0] * img.size[1])
+                img = img.resize((size, size2), Image.ANTIALIAS)
+            else:
+                img = img.resize((size, size), Image.ANTIALIAS)
+
+        elif scale is not None:
+            img = img.resize((int(img.size[0] / scale), int(img.size[1] / scale)), Image.ANTIALIAS)
+        img = np.array(img).transpose(2, 0, 1)
+        img = torch.from_numpy(img).float()
+        return img
 
 def get_datasets(train_tf=None, val_tf=None):
     """Returns the train and val datasets with optional transform to apply to the datasets"""
