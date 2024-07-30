@@ -34,7 +34,7 @@ def compute_ssim(content_images, stylised_images):
     
     return ssim_sum
 
-def plot_results(content_images, style_images, style_labels, stylised_images, nrows=5, model_name="", set_edge_descriptor=True, msgnet=False):
+def plot_results(content_images, style_images, style_labels, stylised_images, nrows=5, model_name="", set_edge_descriptor=True, msgnet=False, one_of_each=True):
     """Plot the stylisation results with Sobel or Canny edge detection
     
     Args:
@@ -46,8 +46,29 @@ def plot_results(content_images, style_images, style_labels, stylised_images, nr
         model_name (string): Defines the model name to print on the plot
         set_edge_descriptor (boolean): Defines the edge detection method to use. True = Sobel, False = Canny edge
         msgnet (boolean): Asserted if stylised_img is to be converted into PIL Image
+        one_of_each (boolean): Asserted to plot one of each style class
     """
     fig, axes = plt.subplots(nrows=nrows, ncols=5, figsize=(20, 20), subplot_kw={'xticks': [], 'yticks': []})
+    
+    if one_of_each:
+        tmp_labels = []
+        tmp_content = []
+        tmp_styles = []
+        tmp_outputs = []
+        for idx, label in enumerate(style_labels):
+            if label not in tmp_labels:
+                tmp_labels.append(label)
+                tmp_content.append(content_images[idx])
+                tmp_styles.append(style_images[idx])
+                tmp_outputs.append(stylised_images[idx])
+        if len(tmp_labels) != nrows:
+            print(style_labels)
+            raise ValueError("Number of unique classes found in this batch did not match the number of classes")
+        content_images = tmp_content
+        style_images = tmp_styles
+        style_labels = tmp_labels
+        stylised_images = tmp_outputs
+
     for i in range(nrows):
         content_img = content_images[i].cpu()
         style_img = style_images[i].cpu()
@@ -274,3 +295,25 @@ def calc_style_loss(input, target):
     input_mean, input_std = calc_mean_std(input)
     target_mean, target_std = calc_mean_std(target)
     return torch.nn.MSELoss()(input_mean, target_mean) + torch.nn.MSELoss()(input_std, target_std)
+
+def plot_training_history(content_losses, style_losses, total_losses):
+    '''
+    Plot training history with two plots
+        1) Content loss vs. Style loss
+        2) Total loss
+    '''
+    plt.figure()
+    plt.plot(content_losses)
+    plt.plot(style_losses)
+    plt.title('Content loss vs Style loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Content', 'Style'], loc='upper left')
+
+    plt.figure()
+    plt.plot(total_losses)
+    plt.title('Total loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+
+    plt.show()
