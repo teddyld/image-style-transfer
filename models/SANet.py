@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch
+from utils.eval import calc_content_loss, calc_style_loss
 
 def calc_mean_std(feat, eps=1e-5):
     # eps is a small value added to the variance to avoid divide-by-zero.
@@ -213,3 +214,57 @@ class Net(nn.Module):
         for i in range(1, 5):
             l_identity2 += self.calc_content_loss(Fcc[i], content_feats[i]) + self.calc_content_loss(Fss[i], style_feats[i])
         return loss_c, loss_s, l_identity1, l_identity2
+
+
+# Code below has been adapted from https://github.com/EndyWon/MicroAST/blob/main/metrics/calc_cs_loss.py
+def compute_style_loss(style_images, stylised_images, net):
+    """Compute the style loss between the style images and stylised images"""
+    enc_1 = net[0]
+    enc_2 = net[1]
+    enc_3 = net[2]
+    enc_4 = net[3]
+    enc_5 = net[4]
+    loss_s = 0.0
+    output1_1 = enc_1(style_images)
+    style1_1 = enc_1(stylised_images) 
+    loss_s += calc_style_loss(output1_1, style1_1)
+    
+    output2_1 = enc_2(output1_1)
+    style2_1 = enc_2(style1_1)
+    loss_s += calc_style_loss(output2_1, style2_1)
+
+    output3_1 = enc_3(output2_1)
+    style3_1 = enc_3(style2_1)
+    loss_s += calc_style_loss(output3_1, style3_1)
+
+    output4_1 = enc_4(output3_1)
+    style4_1 = enc_4(style3_1)
+    loss_s += calc_style_loss(output4_1, style4_1)
+
+    output5_1 = enc_5(output4_1)
+    style5_1 = enc_5(style4_1)
+    loss_s += calc_style_loss(output5_1, style5_1)
+    
+    return float(loss_s / 5)
+        
+def compute_content_loss(content_images, stylised_images, net):
+    """Compute the content loss between the content images and stylised images"""
+    enc_1 = net[0]
+    enc_2 = net[1]
+    enc_3 = net[2]
+    enc_4 = net[3]
+    enc_5 = net[4]
+    
+    loss_c = 0.0
+
+    output1 = enc_4(enc_3(enc_2(enc_1(content_images))))
+    content1 = enc_4(enc_3(enc_2(enc_1(stylised_images))))
+
+    loss_c += calc_content_loss(output1, content1)
+    
+    output2 = enc_5(output1)
+    content2 = enc_5(content1)
+    
+    loss_c += calc_content_loss(output2, content2)
+        
+    return float(loss_c / 2)
