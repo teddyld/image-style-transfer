@@ -317,3 +317,30 @@ def plot_training_history(content_losses, style_losses, total_losses):
     plt.xlabel('Epoch')
 
     plt.show()
+    
+def plot_cyclegan_training(D_losses, G_losses, adv_losses, cycle_losses, I_losses):
+    '''
+    Plot training history of CycleGAN
+    '''
+    plt.figure()
+    plt.plot(D_losses)
+    plt.plot(G_losses)
+    plt.plot(adv_losses)
+    plt.plot(cycle_losses)
+    plt.plot(I_losses)
+    plt.title('Losses')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Discriminator', 'Generator', 'GAN', 'Cycle', 'Identity'], loc='upper left')
+
+    plt.figure()
+    plt.plot(D_losses)
+    plt.plot(adv_losses)
+    plt.plot(cycle_losses)
+    plt.plot(I_losses)
+    plt.title('Losses')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Discriminator', 'GAN', 'Cycle', 'Identity'], loc='upper left')
+
+    plt.show()
