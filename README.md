@@ -8,7 +8,7 @@ Image style transfer is a technique that blends the artistic features of a style
 
 ## Pre-trained Models
 
-Weights used or generated from this project are available at this Google Drive:
+Weights used or generated from this project are available at this Google Drive: https://drive.google.com/drive/folders/1SfgepgKdAJE5g8FA2I6HP3axY423K_Xn?usp=sharing
 
 To run, download the weights and place them in the folder `./models/output/*`
 
