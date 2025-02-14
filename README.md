@@ -1,5 +1,9 @@
 # <div align="center">Image Style Transfer</div>
 
+> A comparison of traditional CNNs and Generative networks for Image Style Transfer
+
+## About
+
 Image style transfer is a technique that blends the artistic features of a style reference image with the content of a target image. This project aims to explore and implement image style transfer using Generative Adversarial Networks, comparing their performance with traditional Convolutional Neural Networks. We focused on CycleGAN and MSG-Net for our implementation, examining how these state-of-the-art methods enhance the quality and realism of style-transferred images.
 
 <div align="center">
